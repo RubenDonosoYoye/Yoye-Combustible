@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agrícola Yoye · Control Combustible</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #1D9E75; --green-dk: #0F6E56; --green-lt: #E1F5EE;
+    --amber: #EF9F27; --red: #D85A30; --red-lt: #FAECE7;
+    --blue: #378ADD; --blue-lt: #E6F1FB;
+    --bg: #F5F5F2; --card: #fff; --border: #e2e0d8;
+    --text: #1a1a18; --muted: #6b6b68; --subtle: #9b9b98;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+  .header { background: var(--green); color: #fff; padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 56px; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+  .header-logo { display: flex; align-items: center; gap: 10px; }
+  .header-logo span { font-size: 17px; font-weight: 600; }
+  .header-logo small { font-size: 12px; opacity: 0.75; }
+  .header-spacer { flex: 1; }
+  .header-badge { background: rgba(255,255,255,0.2); font-size: 12px; padding: 4px 12px; border-radius: 20px; }
+  .month-sel { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+  .month-sel option { color: var(--text); background: #fff; }
+  .btn-export { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff; border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
+  .btn-refresh { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff; border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .grid-4 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .grid-4 { grid-template-columns: 1fr 1fr; } .container { padding: 14px 12px; } }
+  .card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 18px 20px; }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+  .metric-card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 16px 18px; }
+  .metric-card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .metric-card .val { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+  .metric-card .sub { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .metric-card.ok .val { color: var(--green-dk); }
+  .metric-card.warn .val { color: #8a5c09; }
+  .metric-card.danger { border-color: #f5c4b3; background: var(--red-lt); }
+  .metric-card.danger .val { color: #7a2a10; }
+  .alert-banner { background: var(--red-lt); border: 1px solid #f5c4b3; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 13px; color: #7a2a10; }
+  .loading-banner { background: #E6F1FB; border: 1px solid #b8d4f5; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 13px; color: #0C447C; }
+  .tank-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .tank-row:last-child { margin-bottom: 0; }
+  .tank-name { min-width: 90px; font-size: 13px; font-weight: 500; }
+  .tank-bar-bg { flex: 1; height: 14px; background: #ece9e0; border-radius: 10px; overflow: hidden; }
+  .tank-bar { height: 14px; border-radius: 10px; transition: width 0.5s; }
+  .tank-stats { min-width: 120px; text-align: right; font-size: 12px; }
+  .tank-stats .pct { font-size: 14px; font-weight: 600; }
+  .tank-stats .lts { color: var(--muted); margin-left: 4px; }
+  .tank-cap { font-size: 11px; color: var(--subtle); margin-top: 2px; }
+  .chart-wrap { position: relative; }
+  .log-table { width: 100%; border-collapse: collapse; }
+  .log-table th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .log-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f0ede5; vertical-align: middle; }
+  .log-table tr:last-child td { border-bottom: none; }
+  .log-table tr:hover td { background: #faf9f6; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+  .badge-mirador { background: #faeeda; color: #7a4a08; }
+  .badge-rinconada { background: var(--green-lt); color: var(--green-dk); }
+  .badge-bencina { background: #fde8d4; color: #7a3a08; }
+  .neg { color: var(--red); font-weight: 500; }
+  .section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 13px; }
+  .footer { text-align: center; color: var(--subtle); font-size: 12px; padding: 24px 0 12px; }
+  #lastUpdate { font-size: 11px; color: rgba(255,255,255,0.75); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-logo">
+    <span>🔥 Agrícola Yoye</span>
+    <small>Control de combustible</small>
+  </div>
+  <div class="header-spacer"></div>
+  <span id="lastUpdate"></span>
+  <select class="month-sel" id="monthSel" onchange="filtrarMes()">
+    <option value="">Todos los registros</option>
+  </select>
+  <span class="header-badge">Admin</span>
+  <button class="btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
+  <button class="btn-export" onclick="exportarCSV()">⬇️ Exportar</button>
+</div>
+
+<div class="container">
+  <div id="loadingBanner" class="loading-banner">⏳ Cargando datos desde Google Sheets...</div>
+  <div id="alertBanner" class="alert-banner" style="display:none">⚠️ <span id="alertMsg"></span></div>
+
+  <div class="section-title">Resumen mensual</div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;" id="metricsGrid">
+    <div class="metric-card ok">
+      <div class="lbl">Total consumido</div>
+      <div class="val" id="mTotal">—</div>
+      <div class="sub">litros</div>
+    </div>
+    <div class="metric-card">
+      <div class="lbl">Registros</div>
+      <div class="val" id="mRegs">—</div>
+      <div class="sub">cargas</div>
+    </div>
+    <div class="metric-card" id="cardMir">
+      <div class="lbl">Stock Mirador</div>
+      <div class="val" id="mMir">—</div>
+      <div class="sub" id="subMir">de 1.000 L cap.</div>
+    </div>
+    <div class="metric-card" id="cardRin">
+      <div class="lbl">Stock Rinconada</div>
+      <div class="val" id="mRin">—</div>
+      <div class="sub" id="subRin">de 5.000 L cap.</div>
+    </div>
+    <div class="metric-card" id="cardBen">
+      <div class="lbl">Stock Bencina</div>
+      <div class="val" id="mBen">—</div>
+      <div class="sub" id="subBen">de 200 L cap.</div>
+    </div>
+  </div>
+  <style>
+    @media (max-width: 1100px) { #metricsGrid { grid-template-columns: repeat(3, 1fr) !important; } }
+    @media (max-width: 700px)  { #metricsGrid { grid-template-columns: 1fr 1fr !important; } }
+  </style>
+
+  <div class="section-title">Nivel de estanques</div>
+  <div class="card" style="margin-bottom:20px;">
+    <div class="tank-row">
+      <div class="tank-name">Mirador</div>
+      <div class="tank-bar-bg"><div class="tank-bar" id="tbMir" style="width:0%;background:#EF9F27;"></div></div>
+      <div class="tank-stats">
+        <span class="pct" id="tpMir">—</span>
+        <span class="lts" id="tlMir"></span>
+        <div class="tank-cap">Cap. 1.000 L · Mín. 200 L (20%)</div>
+      </div>
+    </div>
+    <div class="tank-row">
+      <div class="tank-name">Rinconada</div>
+      <div class="tank-bar-bg"><div class="tank-bar" id="tbRin" style="width:0%;background:#1D9E75;"></div></div>
+      <div class="tank-stats">
+        <span class="pct" id="tpRin">—</span>
+        <span class="lts" id="tlRin"></span>
+        <div class="tank-cap">Cap. 5.000 L · Mín. 1.000 L (20%)</div>
+      </div>
+    </div>
+    <div class="tank-row">
+      <div class="tank-name" style="color:#C4681A;font-weight:600;">Bencina</div>
+      <div class="tank-bar-bg"><div class="tank-bar" id="tbBen" style="width:0%;background:#C4681A;"></div></div>
+      <div class="tank-stats">
+        <span class="pct" id="tpBen" style="color:#C4681A;">—</span>
+        <span class="lts" id="tlBen"></span>
+        <div class="tank-cap">Cap. 200 L · Mín. 80 L (40%)</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);">⚠️ Los niveles se calculan desde el saldo inicial ingresado en Compras menos los consumos registrados.</div>
+  </div>
+
+  <div class="section-title">Consumo por categoría</div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Por vehículo / máquina</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cVeh"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Por chofer / usuario</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cUsr"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Mirador · Rinconada · Bencina</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cZon"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Tendencia diaria</div>
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title">Consumo por día (litros)</div>
+    <div class="chart-wrap" style="height:180px"><canvas id="cTend"></canvas></div>
+  </div>
+
+  <div class="section-title">Últimos registros</div>
+  <div class="card" style="padding:0; overflow:hidden; margin-bottom:20px;">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Hora</th><th>Vehículo</th>
+          <th>Chofer</th><th>Campo</th><th style="text-align:right">Litros</th>
+        </tr>
+      </thead>
+      <tbody id="logTable"><tr><td colspan="6" class="empty-state">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="footer">Agrícola Yoye · Control de combustible · <span id="footerDate"></span></div>
+</div>
+
+<script>
+var API    = 'https://sheetdb.io/api/v1/f8bs0mhvp5sai';
+var CAP    = { Mirador: 1000, Rinconada: 5000, Bencina: 200 };
+var ALERT  = { Mirador: 20, Rinconada: 20, Bencina: 40 };
+var charts = {};
+var allData = [];
+var saldos = { Mirador: 0, Rinconada: 0, Bencina: 0 };
+
+function fmtL(n) { return Number(n).toLocaleString('es-CL'); }
+function tankColor(p, alertPct) { var a = alertPct || 20; return p > (a * 2) ? '#1D9E75' : p > a ? '#EF9F27' : '#D85A30'; }
+function benColor(p) { return p > 80 ? '#C4681A' : p > 40 ? '#E5893A' : '#D85A30'; }
+
+async function cargarDatos() {
+  document.getElementById('loadingBanner').style.display = 'flex';
+  try {
+    var r = await fetch(API + '?sheet=Consumos');
+    var d = await r.json();
+    allData = Array.isArray(d) ? d.filter(function(x){ return x.Fecha && x.Litros && Number(x.Litros) > 0; }) : [];
+
+    try {
+      var rc = await fetch(API + '?sheet=Compras');
+      var dc = await rc.json();
+      if (Array.isArray(dc) && dc.length > 0) {
+        var compMir = dc.filter(function(x){ return x.Campo === 'Mirador'; })
+                        .reduce(function(s,x){ return s + Number(x.Litros||0); }, 0);
+        var compRin = dc.filter(function(x){ return x.Campo === 'Rinconada'; })
+                        .reduce(function(s,x){ return s + Number(x.Litros||0); }, 0);
+        var compBen = dc.filter(function(x){ return x.Campo === 'Bencina'; })
+                        .reduce(function(s,x){ return s + Number(x.Litros||0); }, 0);
+        saldos.Mirador   = compMir;
+        saldos.Rinconada = compRin;
+        saldos.Bencina   = compBen;
+      }
+    } catch(e) {}
+
+    poblarMeses();
+    renderDash(allData);
+    var _now = new Date();
+    var _hh = String(_now.getHours()).padStart(2,'0');
+    var _mm = String(_now.getMinutes()).padStart(2,'0');
+    var _ss = String(_now.getSeconds()).padStart(2,'0');
+    document.getElementById('lastUpdate').textContent = 'Act. ' + _hh + ':' + _mm + ':' + _ss;
+    var _months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    document.getElementById('footerDate').textContent = String(_now.getDate()).padStart(2,'0') + ' de ' + _months[_now.getMonth()] + ' de ' + _now.getFullYear();
+  } catch(err) {
+    document.getElementById('alertMsg').textContent = 'Error al cargar datos: ' + err.message;
+    document.getElementById('alertBanner').style.display = 'flex';
+  }
+  document.getElementById('loadingBanner').style.display = 'none';
+}
+
+function poblarMeses() {
+  var meses = {};
+  allData.forEach(function(r) {
+    if (r.Fecha) {
+      var parts = r.Fecha.split('/');
+      if (parts.length === 3) {
+        var key = parts[2] + '-' + parts[1].padStart(2,'0');
+        var _meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        var _mIdx = parseInt(parts[1], 10) - 1;
+        var label = _meses[_mIdx] + ' ' + parts[2];
+        meses[key] = label;
+      }
+    }
+  });
+  var sel = document.getElementById('monthSel');
+  while (sel.options.length > 1) sel.remove(1);
+  Object.keys(meses).sort().reverse().forEach(function(k) {
+    var opt = document.createElement('option');
+    opt.value = k; opt.textContent = meses[k];
+    sel.appendChild(opt);
+  });
+}
+
+function filtrarMes() {
+  var mes = document.getElementById('monthSel').value;
+  var filtrado = mes
+    ? allData.filter(function(r) {
+        if (!r.Fecha) return false;
+        var p = r.Fecha.split('/');
+        return p.length === 3 && (p[2] + '-' + p[1].padStart(2,'0')) === mes;
+      })
+    : allData;
+  renderDash(filtrado);
+}
+
+function renderDash(data) {
+  var total = data.reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+  document.getElementById('mTotal').textContent = fmtL(total) + ' L';
+  document.getElementById('mRegs').textContent  = data.length;
+
+  var consMir = data.filter(function(r){ return r.Campo === 'Mirador'; })
+                    .reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+  var consRin = data.filter(function(r){ return r.Campo === 'Rinconada'; })
+                    .reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+  var consBen = data.filter(function(r){ return r.Campo === 'Bencina'; })
+                    .reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+
+  var stockMir = Math.max(0, saldos.Mirador - consMir);
+  var stockRin = Math.max(0, saldos.Rinconada - consRin);
+  var stockBen = Math.max(0, saldos.Bencina - consBen);
+  var pMir = saldos.Mirador > 0 ? Math.round(stockMir / CAP.Mirador * 100) : 0;
+  var pRin = saldos.Rinconada > 0 ? Math.round(stockRin / CAP.Rinconada * 100) : 0;
+  var pBen = saldos.Bencina > 0 ? Math.round(stockBen / CAP.Bencina * 100) : 0;
+
+  document.getElementById('mMir').textContent = fmtL(stockMir) + ' L';
+  document.getElementById('mRin').textContent = fmtL(stockRin) + ' L';
+  document.getElementById('mBen').textContent = fmtL(stockBen) + ' L';
+  document.getElementById('subMir').textContent = pMir + '% de 1.000 L';
+  document.getElementById('subRin').textContent = (pRin <= ALERT.Rinconada && saldos.Rinconada > 0 ? '⚠ ' : '') + pRin + '% de 5.000 L';
+  document.getElementById('subBen').textContent = (pBen <= ALERT.Bencina && saldos.Bencina > 0 ? '⚠ ' : '') + pBen + '% de 200 L';
+  document.getElementById('cardMir').className = 'metric-card ' + (saldos.Mirador === 0 ? '' : pMir <= ALERT.Mirador ? 'danger' : pMir <= 40 ? 'warn' : 'ok');
+  document.getElementById('cardRin').className = 'metric-card ' + (saldos.Rinconada === 0 ? '' : pRin <= ALERT.Rinconada ? 'danger' : pRin <= 40 ? 'warn' : 'ok');
+  document.getElementById('cardBen').className = 'metric-card ' + (saldos.Bencina === 0 ? '' : pBen <= ALERT.Bencina ? 'danger' : pBen <= 80 ? 'warn' : 'ok');
+
+  document.getElementById('tbMir').style.width = pMir + '%';
+  document.getElementById('tbMir').style.background = tankColor(pMir, 20);
+  document.getElementById('tbRin').style.width = pRin + '%';
+  document.getElementById('tbRin').style.background = tankColor(pRin, 20);
+  document.getElementById('tbBen').style.width = pBen + '%';
+  document.getElementById('tbBen').style.background = benColor(pBen);
+  document.getElementById('tpMir').textContent = pMir + '%';
+  document.getElementById('tpRin').textContent = pRin + '%';
+  document.getElementById('tpBen').textContent = pBen + '%';
+  document.getElementById('tlMir').textContent = fmtL(stockMir) + ' L';
+  document.getElementById('tlRin').textContent = fmtL(stockRin) + ' L';
+  document.getElementById('tlBen').textContent = fmtL(stockBen) + ' L';
+
+  var alerts = [];
+  if (saldos.Mirador > 0 && pMir <= ALERT.Mirador) alerts.push('Mirador (' + pMir + '%, bajo 20%)');
+  if (saldos.Rinconada > 0 && pRin <= ALERT.Rinconada) alerts.push('Rinconada (' + pRin + '%, bajo 20%)');
+  if (saldos.Bencina > 0 && pBen <= ALERT.Bencina) alerts.push('Bencina (' + pBen + '%, bajo 40%)');
+  var ab = document.getElementById('alertBanner');
+  if (alerts.length > 0) {
+    ab.style.display = 'flex';
+    document.getElementById('alertMsg').textContent = 'Estanque ' + alerts.join(' · ') + ' — Considerar reposición urgente';
+  } else { ab.style.display = 'none'; }
+
+  var vehMap = {};
+  data.forEach(function(r) { if(r.Vehiculo) vehMap[r.Vehiculo] = (vehMap[r.Vehiculo]||0) + Number(r.Litros||0); });
+  var vehSort = Object.entries(vehMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
+
+  var usrMap = {};
+  data.forEach(function(r) { if(r.Chofer) usrMap[r.Chofer] = (usrMap[r.Chofer]||0) + Number(r.Litros||0); });
+  var usrSort = Object.entries(usrMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
+
+  var diaMap = {};
+  data.forEach(function(r) { if(r.Fecha) diaMap[r.Fecha] = (diaMap[r.Fecha]||0) + Number(r.Litros||0); });
+  var diasSort = Object.keys(diaMap).sort();
+
+  renderCharts(vehSort, usrSort, [consMir, consRin, consBen], diasSort, diaMap);
+
+  var tbody = document.getElementById('logTable');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sin registros para este período</td></tr>';
+    return;
+  }
+  var ultimos = data.slice().reverse().slice(0,20);
+  tbody.innerHTML = ultimos.map(function(r) {
+    var campo = r.Campo || '';
+    var badge = campo === 'Mirador'
+      ? '<span class="badge badge-mirador">Mirador</span>'
+      : campo === 'Bencina'
+        ? '<span class="badge badge-bencina">Bencina</span>'
+        : '<span class="badge badge-rinconada">Rinconada</span>';
+    return '<tr><td>' + (r.Fecha||'') + '</td><td>' + (r.Hora||'') + '</td><td>' + (r.Vehiculo||'') + '</td><td>' + (r.Chofer||'') + '</td><td>' + badge + '</td><td class="neg" style="text-align:right">−' + fmtL(r.Litros||0) + ' L</td></tr>';
+  }).join('');
+}
+
+function renderCharts(veh, usr, zon, dias, diaMap) {
+  var baseH = {
+    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', font: { size: 11 } } },
+      y: { grid: { display: false }, ticks: { color: '#444', font: { size: 11 } } }
+    }
+  };
+  if (charts.veh) charts.veh.destroy();
+  charts.veh = new Chart(document.getElementById('cVeh'), {
+    type: 'bar',
+    data: { labels: veh.map(function(x){return x[0];}), datasets: [{ data: veh.map(function(x){return x[1];}), backgroundColor: '#5DCAA5', borderRadius: 4 }] },
+    options: JSON.parse(JSON.stringify(baseH))
+  });
+  if (charts.usr) charts.usr.destroy();
+  charts.usr = new Chart(document.getElementById('cUsr'), {
+    type: 'bar',
+    data: { labels: usr.map(function(x){return x[0];}), datasets: [{ data: usr.map(function(x){return x[1];}), backgroundColor: '#378ADD', borderRadius: 4 }] },
+    options: JSON.parse(JSON.stringify(baseH))
+  });
+  if (charts.zon) charts.zon.destroy();
+  charts.zon = new Chart(document.getElementById('cZon'), {
+    type: 'doughnut',
+    data: { labels: ['Mirador','Rinconada','Bencina'], datasets: [{ data: zon, backgroundColor: ['#EF9F27','#1D9E75','#C4681A'], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 14 } } } }
+  });
+  if (charts.tend) charts.tend.destroy();
+  charts.tend = new Chart(document.getElementById('cTend'), {
+    type: 'line',
+    data: { labels: dias, datasets: [{ data: dias.map(function(d){ return diaMap[d]; }), borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)', pointRadius: 3, borderWidth: 2, fill: true, tension: 0.35 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 }, maxTicksLimit: 10 } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', font: { size: 11 } } } } }
+  });
+}
+
+function exportarCSV() {
+  if (allData.length === 0) { alert('No hay datos para exportar.'); return; }
+  var cols = ['Fecha','Hora','Campo','Vehiculo','Chofer','Litros'];
+  var csv = cols.join(',') + '\n' + allData.map(function(r) {
+    return cols.map(function(c){ return '"' + (r[c]||'') + '"'; }).join(',');
+  }).join('\n');
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  var _nd = new Date();
+  var _dex = String(_nd.getDate()).padStart(2,'0') + '-' + String(_nd.getMonth()+1).padStart(2,'0') + '-' + _nd.getFullYear();
+  a.download = 'yoye_consumos_' + _dex + '.csv';
+  a.click();
+}
+
+cargarDatos();
+</script>
+</body>
+</html>
