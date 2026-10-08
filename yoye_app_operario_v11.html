@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Yoye · Combustible</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f5f5f5;
+  --color-background-tertiary: #eeeeee;
+  --color-text-primary: #111111;
+  --color-text-secondary: #666666;
+  --color-border-secondary: #dddddd;
+  --color-border-tertiary: #e8e8e8;
+  --border-radius-md: 10px;
+  --border-radius-lg: 14px;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--color-background-tertiary); }
+.screen { display: none; padding: 0 0 2rem; }
+.screen.active { display: block; }
+.topbar { background: #1D9E75; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+.topbar h1 { color: #fff; font-size: 17px; font-weight: 500; flex: 1; }
+.role-badge { background: rgba(255,255,255,0.25); color: #fff; font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+.nav-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.card { background: var(--color-background-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); padding: 1.1rem; margin: 10px 12px 0; }
+.card-title { font-size: 11px; color: var(--color-text-secondary); font-weight: 500; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Zona grid: 3 botones para Mirador / Rinconada / Bencina */
+.zona-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.zona-btn { padding: 18px 8px; border-radius: var(--border-radius-md); border: 2px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); font-size: 15px; font-weight: 500; cursor: pointer; text-align: center; }
+.zona-btn i { font-size: 26px; display: block; margin-bottom: 5px; color: #1D9E75; }
+.zona-btn.selected { border-color: #1D9E75; background: #E1F5EE; color: #0F6E56; }
+.zona-btn.selected i { color: #0F6E56; }
+/* Bencina – color naranja para diferenciarlo visualmente */
+.zona-btn.bencina i { color: #C4681A; }
+.zona-btn.bencina.selected { border-color: #C4681A; background: #FEF3E7; color: #8B4513; }
+.zona-btn.bencina.selected i { color: #8B4513; }
+.zona-btn-full { grid-column: span 2; }
+
+select, input[type=number] { width: 100%; padding: 13px 12px; font-size: 16px; border-radius: var(--border-radius-md); border: 1.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); margin-top: 4px; }
+.litros-input { font-size: 30px !important; padding: 18px !important; text-align: center; font-weight: 500 !important; }
+.btn-register { width: calc(100% - 24px); margin: 14px 12px 0; background: #1D9E75; color: #fff; border: none; border-radius: var(--border-radius-lg); padding: 17px; font-size: 18px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn-register:active { background: #0F6E56; transform: scale(0.98); }
+
+.btn-secondary { width: calc(100% - 24px); margin: 10px 12px 0; background: transparent; color: #1D9E75; border: 1.5px solid #1D9E75; border-radius: var(--border-radius-lg); padding: 14px; font-size: 16px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* Admin */
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+.metric .lbl { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.metric .val { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+.metric .sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.metric.warn .val { color: #BA7517; }
+.metric.ok .val { color: #0F6E56; }
+.metric.danger .val { color: #993C1D; }
+.metric-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.tank-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tank-label { font-size: 12px; color: var(--color-text-secondary); min-width: 74px; }
+.progress-bar-bg { background: var(--color-border-tertiary); border-radius: 10px; height: 12px; flex: 1; overflow: hidden; }
+.progress-bar { height: 12px; border-radius: 10px; transition: width 0.4s; }
+.tank-pct { font-size: 12px; font-weight: 500; min-width: 38px; text-align: right; }
+.tank-lts { font-size: 11px; color: var(--color-text-secondary); min-width: 55px; text-align: right; }
+.tabs { display: flex; gap: 6px; padding: 10px 12px 0; overflow-x: auto; }
+.tab { padding: 8px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); color: var(--color-text-secondary); font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.tab.active { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+.chart-wrap { position: relative; height: 200px; margin-top: 8px; }
+.log-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.log-item:last-child { border-bottom: none; }
+.log-icon { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.log-icon.consume { background: #E1F5EE; }
+.log-icon.consume i { color: #0F6E56; font-size: 18px; }
+.log-icon.buy { background: #E6F1FB; }
+.log-icon.buy i { color: #185FA5; font-size: 18px; }
+.log-info { flex: 1; min-width: 0; }
+.log-info .name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-info .meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.log-lts { font-size: 15px; font-weight: 500; }
+.log-lts.consume { color: #1D9E75; }
+.log-lts.buy { color: #185FA5; }
+.month-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; }
+.month-row select { flex: 1; font-size: 14px; padding: 8px 10px; width: auto; }
+
+.app-wrap { position: relative; max-width: 390px; margin: 0 auto; background: var(--color-background-tertiary); }
+.success-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(14,110,86,0.97); z-index: 100; flex-direction: column; align-items: center; justify-content: center; color: #fff; min-height: 500px; }
+.success-overlay.show { display: flex; }
+.success-overlay i.big { font-size: 72px; margin-bottom: 16px; }
+.success-overlay .msg { font-size: 24px; font-weight: 500; margin-bottom: 10px; }
+.success-overlay .detail { font-size: 14px; opacity: 0.85; margin-bottom: 6px; text-align: center; padding: 0 24px; }
+.success-overlay .btn-ok { background: #fff; color: #0F6E56; border: none; border-radius: var(--border-radius-lg); padding: 14px 40px; font-size: 16px; font-weight: 500; cursor: pointer; margin-top: 28px; }
+
+.bottom-nav { background: var(--color-background-primary); border-top: 0.5px solid var(--color-border-tertiary); display: flex; }
+.bnav-btn { flex: 1; padding: 12px 4px 10px; border: none; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--color-text-secondary); font-size: 10px; }
+.bnav-btn i { font-size: 22px; }
+.bnav-btn.active { color: #1D9E75; }
+.alert-pill { display: inline-flex; align-items: center; gap: 5px; background: #FAECE7; color: #993C1D; font-size: 12px; padding: 5px 12px; border-radius: 20px; margin-bottom: 4px; }
+.bencina-badge { display: inline-flex; align-items: center; gap: 5px; background: #FEF3E7; color: #8B4513; font-size: 12px; padding: 4px 10px; border-radius: 20px; margin-left: 6px; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="app-wrap" id="appWrap">
+
+  <!-- Success overlay -->
+  <div id="successOverlay" class="success-overlay">
+    <i class="ti ti-circle-check big" aria-hidden="true"></i>
+    <div class="msg" id="successTitle">¡Registrado!</div>
+    <div class="detail" id="successLine1"></div>
+    <div class="detail" id="successLine2"></div>
+    <button class="btn-ok" onclick="closeSuccess()">Nuevo registro</button>
+  </div>
+
+  <!-- ═══════════════════════════ REGISTRO CONSUMO ═══════════════════════ -->
+  <div class="screen active" id="screenConsumo">
+    <div class="topbar">
+      <i class="ti ti-flame" style="color:#fff;font-size:22px" aria-hidden="true"></i>
+      <h1>Yoye · Combustible</h1>
+      <span class="role-badge">Operario</span>
+      <button class="nav-btn" onclick="goScreen('screenAdmin')"><i class="ti ti-layout-dashboard"></i></button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">1 · ¿En qué zona estás?</div>
+      <div class="zona-grid">
+        <button class="zona-btn selected" id="btnMirador" onclick="selectZona('Mirador',this)">
+          <i class="ti ti-mountain" aria-hidden="true"></i>Mirador
+        </button>
+        <button class="zona-btn" id="btnRinconada" onclick="selectZona('Rinconada',this)">
+          <i class="ti ti-trees" aria-hidden="true"></i>Rinconada
+        </button>
+        <button class="zona-btn bencina zona-btn-full" id="btnBencina" onclick="selectZona('Bencina',this)">
+          <i class="ti ti-gas-station" aria-hidden="true"></i>Estanque Bencina
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">2 · Estanque de carga</div>
+      <select id="selEstanque">
+        <option value="">— Elige estanque —</option>
+        <option value="Estanque Mirador">Estanque Mirador (Petróleo)</option>
+        <option value="Estanque Rinconada">Estanque Rinconada (Petróleo)</option>
+        <option value="Estanque Bencina">Estanque Bencina (200 L)</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">3 · Vehículo o máquina</div>
+      <select id="selVehiculo">
+        <option value="">— Elige vehículo / máquina —</option>
+        <optgroup label="Tractores">
+          <option>MF 10</option>
+          <option>MF 12</option>
+          <option>MF 13</option>
+          <option>MF 14</option>
+          <option>MF 15 275</option>
+          <option>MF 16</option>
+          <option>MF 17</option>
+          <option>MF 18</option>
+          <option>MF 19</option>
+          <option>MF 20</option>
+          <option>MF 21</option>
+          <option>MF 22</option>
+          <option>MF 23</option>
+          <option>MF 24</option>
+          <option>MF 26</option>
+          <option>MF 30</option>
+          <option>Landini</option>
+          <option>Landini 3</option>
+          <option>Landini 4</option>
+          <option>Landini 18</option>
+          <option>Tractor 6</option>
+          <option>Jhon Deere RC</option>
+          <option>Farmtrac 6</option>
+          <option>Tractor Arrendado</option>
+          <option>Indio</option>
+          <option>MF 1</option>
+        </optgroup>
+        <optgroup label="Camionetas / Autos">
+          <option>Camioneta BB</option>
+          <option>Camioneta JAC</option>
+          <option>Camioneta JFC</option>
+          <option>Camioneta JC</option>
+          <option>Camioneta PMR</option>
+          <option>Camioneta Maxus Mirador</option>
+          <option>Camioneta Maxus Rinconada</option>
+          <option>Auto JAC</option>
+          <option>Camión</option>
+          <option>FCR</option>
+        </optgroup>
+        <optgroup label="Maquinaria">
+          <option>Cosechadora D'agen</option>
+          <option>Remecedora Verde</option>
+          <option>Excavadora</option>
+          <option>Massey MP</option>
+          <option>Generador Nueces</option>
+          <option>Generador Oficina</option>
+          <option>Yale – Mirador</option>
+          <option>Yale – Rinconada</option>
+          <option>Corta Setos</option>
+          <option>Micro</option>
+          <option>Famtec 6</option>
+          <option>Podadora Nogal</option>
+          <option>Retro-Excavadora (Arrendada)</option>
+          <option>Vehículo Externo</option>
+        </optgroup>
+        <optgroup label="Motos (Bencina)">
+          <option>Motos RC</option>
+          <option>Motos MC</option>
+          <option>Motos Plano</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">4 · ¿Quién eres?</div>
+      <select id="selUsuario">
+        <option value="">— Elige tu nombre —</option>
+        <option>Andres Silva Araneda</option>
+        <option>Daniel Gonzalez Araneda</option>
+        <option>JAC</option>
+        <option>JFC</option>
+        <option>JCC</option>
+        <option>BB</option>
+        <option>Rodrigo Abarca</option>
+        <option>Joaquin Quiroga</option>
+        <option>Marcos Carreño</option>
+        <option>Raul Bustos</option>
+        <option>Jery Hernandez</option>
+        <option>Ricardo Fuentes</option>
+        <option>Manuel Tapia</option>
+        <option>Nicolas Tapia</option>
+        <option>Jaime Silva</option>
+        <option>Chofer Externo</option>
+        <option>Nelson Silva</option>
+        <option>Francisco Caceres</option>
+        <option>Guillermo Pardo</option>
+        <option>Juan Carlos Moya</option>
+        <option>Marcelo Zamorano</option>
+        <option>Marcos Velasquez</option>
+        <option>Pedro Velasquez</option>
+        <option>David Escalante</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">5 · Litros cargados</div>
+      <input type="number" id="inputLitros" class="litros-input" placeholder="0" min="1" max="600">
+    </div>
+
+    <button class="btn-register" onclick="registrarConsumo()">
+      <i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar consumo
+    </button>
+
+    <div style="margin:10px 12px 0;padding:10px 12px;background:#fff8f0;border-radius:10px;border:1px solid #f0d0a0;">
+      <div style="font-size:11px;color:#7a5c00;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">DIAGNÓSTICO DE CONEXIÓN</div>
+      <button onclick="testConexion()" style="background:#EF9F27;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;width:100%;">
+        Probar conexión con Google Sheets
+      </button>
+      <div id="diagResult" style="margin-top:8px;font-size:12px;color:#444;display:none;word-break:break-all;"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ REGISTRO COMPRA ═══════════════════════ -->
+  <div class="screen" id="screenCompra">
+    <div class="topbar">
+      <i class="ti ti-shopping-cart" style="color:#fff;font-size:22px" aria-hidden="true"></i>
+      <h1>Compra de combustible</h1>
+      <span class="role-badge">Admin</span>
+      <button class="nav-btn" onclick="goScreen('screenAdmin')"><i class="ti ti-layout-dashboard"></i></button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Estanque destino</div>
+      <div class="zona-grid">
+        <button class="zona-btn selected" id="btnCMirador" onclick="selectZonaCompra('Mirador',this)">
+          <i class="ti ti-mountain" aria-hidden="true"></i>Mirador
+        </button>
+        <button class="zona-btn" id="btnCRinconada" onclick="selectZonaCompra('Rinconada',this)">
+          <i class="ti ti-trees" aria-hidden="true"></i>Rinconada
+        </button>
+        <button class="zona-btn bencina zona-btn-full" id="btnCBencina" onclick="selectZonaCompra('Bencina',this)">
+          <i class="ti ti-gas-station" aria-hidden="true"></i>Estanque Bencina
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Proveedor</div>
+      <select id="selProveedor">
+        <option value="">— Proveedor —</option>
+        <option>COPEC</option>
+        <option>ENEX</option>
+        <option>Otro</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Litros comprados</div>
+      <input type="number" id="inputCompraLts" class="litros-input" placeholder="0" min="1">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Precio por litro ($)</div>
+      <input type="number" id="inputPrecio" style="font-size:22px;padding:14px;text-align:center;font-weight:500;" placeholder="0">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Saldo inicial en estanque (L)</div>
+      <input type="number" id="inputSaldoInicial" style="font-size:18px;padding:13px;" placeholder="Litros antes de esta compra">
+    </div>
+
+    <button class="btn-register" onclick="registrarCompra()">
+      <i class="ti ti-plus" aria-hidden="true"></i> Registrar compra
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════ ADMIN DASHBOARD ═══════════════════════ -->
+  <div class="screen" id="screenAdmin">
+    <div class="topbar">
+      <i class="ti ti-layout-dashboard" style="color:#fff;font-size:22px" aria-hidden="true"></i>
+      <h1>Dashboard Admin</h1>
+      <span class="role-badge">Admin</span>
+      <button class="nav-btn" onclick="goScreen('screenConsumo')"><i class="ti ti-plus"></i></button>
+    </div>
+
+    <div class="month-row">
+      <i class="ti ti-calendar" style="color:var(--color-text-secondary);font-size:18px" aria-hidden="true"></i>
+      <select onchange="updateDash(this.value)">
+        <option value="oct">Octubre 2026</option>
+        <option value="sep">Septiembre 2026</option>
+        <option value="ago">Agosto 2026</option>
+      </select>
+    </div>
+
+    <!-- Métricas -->
+    <div class="card">
+      <div class="card-title">Resumen mensual</div>
+      <div class="metric-grid">
+        <div class="metric ok">
+          <div class="lbl">Total consumido</div>
+          <div class="val" id="mTotal">776 L</div>
+          <div class="sub">petróleo + bencina</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Registros</div>
+          <div class="val" id="mRegs">39</div>
+          <div class="sub">cargas registradas</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="metric-grid-3">
+          <div class="metric ok">
+            <div class="lbl">Mirador</div>
+            <div class="val" id="mMirador">980 L</div>
+            <div class="sub">petróleo</div>
+          </div>
+          <div class="metric ok">
+            <div class="lbl">Rinconada</div>
+            <div class="val" id="mRinconada">4.250 L</div>
+            <div class="sub">petróleo</div>
+          </div>
+          <div class="metric" id="mBencinaCard">
+            <div class="lbl">Bencina</div>
+            <div class="val" id="mBencina">200 L</div>
+            <div class="sub">200 L cap.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nivel estanques -->
+    <div class="card">
+      <div class="card-title">Nivel de estanques</div>
+      <div style="margin-bottom:8px;">
+        <div class="alert-pill" id="alertMir" style="display:none"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Mirador bajo mínimo</div>
+        <div class="alert-pill" id="alertRin" style="display:none"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Rinconada bajo mínimo</div>
+        <div class="alert-pill" id="alertBen" style="display:none"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Bencina bajo mínimo</div>
+      </div>
+      <div class="tank-row">
+        <span class="tank-label">Mirador</span>
+        <div class="progress-bar-bg"><div class="progress-bar" id="pbMirador" style="width:98%;background:#1D9E75;"></div></div>
+        <span class="tank-pct" id="pctMirador">98%</span>
+        <span class="tank-lts" id="ltsMirador">980 L</span>
+      </div>
+      <div class="tank-row">
+        <span class="tank-label">Rinconada</span>
+        <div class="progress-bar-bg"><div class="progress-bar" id="pbRinconada" style="width:85%;background:#1D9E75;"></div></div>
+        <span class="tank-pct" id="pctRinconada">85%</span>
+        <span class="tank-lts" id="ltsRinconada">4.250 L</span>
+      </div>
+      <div class="tank-row">
+        <span class="tank-label" style="color:#C4681A;">Bencina</span>
+        <div class="progress-bar-bg"><div class="progress-bar" id="pbBencina" style="width:100%;background:#C4681A;"></div></div>
+        <span class="tank-pct" id="pctBencina" style="color:#C4681A;">100%</span>
+        <span class="tank-lts" id="ltsBencina">200 L</span>
+      </div>
+      <p style="font-size:11px;color:var(--color-text-secondary);margin-top:6px;">Cap. Mirador: 1.000 L · Rinconada: 5.000 L · Bencina: 200 L</p>
+    </div>
+
+    <!-- Tabs gráficos -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(this,'tabVehiculo')">Por vehículo</button>
+      <button class="tab" onclick="switchTab(this,'tabUsuario')">Por operario</button>
+      <button class="tab" onclick="switchTab(this,'tabZona')">Por zona</button>
+      <button class="tab" onclick="switchTab(this,'tabTendencia')">Tendencia</button>
+    </div>
+
+    <div class="card" style="margin-top:8px;">
+      <div id="tabVehiculo">
+        <div class="card-title">Consumo por vehículo / máquina (L)</div>
+        <div class="chart-wrap"><canvas id="chartVeh" role="img" aria-label="Consumo por vehículo en litros"></canvas></div>
+      </div>
+      <div id="tabUsuario" style="display:none">
+        <div class="card-title">Consumo por operario (L)</div>
+        <div class="chart-wrap"><canvas id="chartUsr" role="img" aria-label="Consumo por operario en litros"></canvas></div>
+      </div>
+      <div id="tabZona" style="display:none">
+        <div class="card-title">Consumo por zona (L)</div>
+        <div class="chart-wrap" style="height:160px"><canvas id="chartZon" role="img" aria-label="Consumo por zona"></canvas></div>
+      </div>
+      <div id="tabTendencia" style="display:none">
+        <div class="card-title">Consumo diario este mes (L)</div>
+        <div class="chart-wrap"><canvas id="chartTend" role="img" aria-label="Consumo diario del mes"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Últimos movimientos -->
+    <div class="card">
+      <div class="card-title">Últimos movimientos</div>
+      <div class="log-item">
+        <div class="log-icon consume"><i class="ti ti-tractor" aria-hidden="true"></i></div>
+        <div class="log-info">
+          <div class="name">MF 15</div>
+          <div class="meta">Marcos Velasquez · Mirador · hoy</div>
+        </div>
+        <div class="log-lts consume">−48 L</div>
+      </div>
+      <div class="log-item">
+        <div class="log-icon consume"><i class="ti ti-tractor" aria-hidden="true"></i></div>
+        <div class="log-info">
+          <div class="name">MF 12</div>
+          <div class="meta">Guillermo Pardo · Mirador</div>
+        </div>
+        <div class="log-lts consume">−51 L</div>
+      </div>
+      <div class="log-item">
+        <div class="log-icon consume"><i class="ti ti-truck" aria-hidden="true"></i></div>
+        <div class="log-info">
+          <div class="name">Vehículo Externo</div>
+          <div class="meta">Chofer Externo · Mirador</div>
+        </div>
+        <div class="log-lts consume">−59 L</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <button class="bnav-btn active" id="bnConsumo" onclick="goScreen('screenConsumo')">
+      <i class="ti ti-flame" aria-hidden="true"></i>Consumo
+    </button>
+    <button class="bnav-btn" id="bnCompra" onclick="goScreen('screenCompra')">
+      <i class="ti ti-shopping-cart" aria-hidden="true"></i>Compra
+    </button>
+    <button class="bnav-btn" id="bnAdmin" onclick="goScreen('screenAdmin')">
+      <i class="ti ti-layout-dashboard" aria-hidden="true"></i>Dashboard
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+var zonaConsumo = 'Mirador';
+var zonaCompra = 'Mirador';
+var charts = {};
+
+// ── Configuración SheetDB ──────────────────────────────────────────────────
+var SHEETDB_URL = 'https://sheetdb.io/api/v1/f8bs0mhvp5sai';
+
+function goScreen(id) {
+  var screens = document.querySelectorAll('.screen');
+  for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+  document.getElementById(id).classList.add('active');
+  var bnavs = document.querySelectorAll('.bnav-btn');
+  for (var j = 0; j < bnavs.length; j++) bnavs[j].classList.remove('active');
+  var map = { screenConsumo:'bnConsumo', screenCompra:'bnCompra', screenAdmin:'bnAdmin' };
+  if (map[id]) document.getElementById(map[id]).classList.add('active');
+  if (id === 'screenAdmin') setTimeout(initCharts, 80);
+}
+
+function selectZona(zona, btn) {
+  zonaConsumo = zona;
+  ['btnMirador','btnRinconada','btnBencina'].forEach(function(id) {
+    document.getElementById(id).classList.remove('selected');
+  });
+  btn.classList.add('selected');
+  var est = document.getElementById('selEstanque');
+  if (zona === 'Bencina') {
+    est.value = 'Estanque Bencina';
+  } else {
+    est.value = 'Estanque ' + zona;
+  }
+}
+
+function selectZonaCompra(zona, btn) {
+  zonaCompra = zona;
+  ['btnCMirador','btnCRinconada','btnCBencina'].forEach(function(id) {
+    document.getElementById(id).classList.remove('selected');
+  });
+  btn.classList.add('selected');
+}
+
+function testConexion() {
+  var el = document.getElementById('diagResult');
+  el.style.display = 'block';
+  el.style.color = '#444';
+  el.textContent = 'Probando conexión…';
+  var t0 = Date.now();
+  fetch(SHEETDB_URL + '?sheet=Consumos&limit=1', { method: 'GET', mode: 'cors' })
+  .then(function(r){
+    var ms = Date.now() - t0;
+    el.style.color = r.ok ? '#0a6e40' : '#c0392b';
+    el.innerHTML = (r.ok ? '✅ Conexión OK' : '❌ Error HTTP ' + r.status) + ' (' + ms + 'ms)<br>Iniciando test de escritura…';
+    var now = new Date();
+    var dd = String(now.getDate()).padStart(2,'0');
+    var mm = String(now.getMonth()+1).padStart(2,'0');
+    var payload = { data: [{ Fecha: dd+'/'+mm+'/'+now.getFullYear(), Hora: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'), Campo: 'TEST-DIAG', Vehiculo: navigator.userAgent.substring(0,40), Chofer: 'DIAG', Litros: 0.1 }]};
+    return fetch(SHEETDB_URL + '?sheet=Consumos', { method: 'POST', mode: 'cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  })
+  .then(function(r2){
+    return r2.text().then(function(txt){ return {ok: r2.ok, status: r2.status, txt: txt}; });
+  })
+  .then(function(res){
+    el.style.color = res.ok ? '#0a6e40' : '#c0392b';
+    el.innerHTML += '<br>' + (res.ok ? '✅ ESCRITURA OK' : '❌ Error escritura HTTP ' + res.status) + ': ' + res.txt.substring(0,120);
+  })
+  .catch(function(err){
+    el.style.color = '#c0392b';
+    el.innerHTML += '<br>❌ FALLA DE RED: ' + (err && err.message ? err.message : String(err));
+  });
+}
+
+function registrarConsumo() {
+  var v = document.getElementById('selVehiculo').value;
+  var u = document.getElementById('selUsuario').value;
+  var l = parseFloat(document.getElementById('inputLitros').value);
+  var e = document.getElementById('selEstanque').value;
+  if (!v || !u || !l || !e) { alert('Completa todos los campos para continuar.'); return; }
+
+  var now = new Date();
+  var dd = String(now.getDate()).padStart(2,'0');
+  var mm = String(now.getMonth()+1).padStart(2,'0');
+  var yyyy = now.getFullYear();
+  var fecha = dd + '/' + mm + '/' + yyyy;
+  var hora  = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  var payload = { data: [{
+    Fecha: fecha,
+    Hora: hora,
+    Campo: zonaConsumo,
+    Vehiculo: v,
+    Chofer: u,
+    Litros: l
+  }]};
+
+  var btn = document.querySelector('.btn-register');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  fetch(SHEETDB_URL + '?sheet=Consumos', {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){
+    if (!r.ok) {
+      return r.text().then(function(txt){
+        throw new Error('HTTP ' + r.status + ': ' + txt);
+      });
+    }
+    return r.json();
+  })
+  .then(function(){
+    document.getElementById('successTitle').textContent = '¡Registrado!';
+    document.getElementById('successLine1').textContent = zonaConsumo + '  ·  ' + v;
+    document.getElementById('successLine2').textContent = u + '  ·  ' + l + ' litros  ·  ' + e;
+    document.getElementById('successOverlay').classList.add('show');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar consumo';
+  })
+  .catch(function(err){
+    var msg = err && err.message ? err.message : 'Sin detalles';
+    alert('Error al guardar:\n' + msg + '\n\nVerifica tu conexión e inténtalo de nuevo.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar consumo';
+  });
+}
+
+function registrarCompra() {
+  var l = parseFloat(document.getElementById('inputCompraLts').value);
+  var p = parseFloat(document.getElementById('inputPrecio').value) || 0;
+  var prov = document.getElementById('selProveedor').value;
+  var saldo = document.getElementById('inputSaldoInicial').value;
+  if (!l || !prov) { alert('Completa litros y proveedor.'); return; }
+
+  var now = new Date();
+  var dd2 = String(now.getDate()).padStart(2,'0');
+  var mm2 = String(now.getMonth()+1).padStart(2,'0');
+  var yyyy2 = now.getFullYear();
+  var fecha = dd2 + '/' + mm2 + '/' + yyyy2;
+  var hora  = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  var total = p ? l * p : 0;
+
+  var payload = { data: [{
+    Fecha: fecha,
+    Hora: hora,
+    Campo: zonaCompra,
+    Proveedor: prov,
+    Litros: l,
+    PrecioLitro: p || '',
+    Total: total || ''
+  }]};
+
+  fetch(SHEETDB_URL + '?sheet=Compras', {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){
+    if (!r.ok) {
+      return r.text().then(function(txt){
+        throw new Error('HTTP ' + r.status + ': ' + txt);
+      });
+    }
+    return r.json();
+  })
+  .then(function(){
+    document.getElementById('successTitle').textContent = '¡Compra registrada!';
+    document.getElementById('successLine1').textContent = 'Estanque ' + zonaCompra + '  ·  ' + prov + '  ·  +' + l + ' L';
+    document.getElementById('successLine2').textContent = total ? 'Total: $' + parseInt(total).toLocaleString('es-CL') : '';
+    document.getElementById('successOverlay').classList.add('show');
+  })
+  .catch(function(err){
+    var msg = err && err.message ? err.message : 'Sin detalles';
+    alert('Error al guardar:\n' + msg + '\n\nVerifica tu conexión.');
+  });
+}
+
+function closeSuccess() {
+  document.getElementById('successOverlay').classList.remove('show');
+  ['selVehiculo','selUsuario','inputLitros','selEstanque',
+   'inputCompraLts','inputPrecio','selProveedor','inputSaldoInicial'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  // Restaurar selección de zona a Mirador
+  selectZona('Mirador', document.getElementById('btnMirador'));
+}
+
+function switchTab(btn, tabId) {
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  btn.classList.add('active');
+  ['tabVehiculo','tabUsuario','tabZona','tabTendencia'].forEach(function(id) {
+    document.getElementById(id).style.display = id === tabId ? '' : 'none';
+  });
+}
+
+var dash = {
+  oct: { total:'776 L', regs:39, mir:'980 L', rin:'4.250 L', ben:'200 L', pMir:98, pRin:85, pBen:100,
+         veh:['MF 15','MF 12','MF 10','Veh. Externo','MF 16'], vehD:[100,51,22,59,22],
+         usr:['Marcos V.','Guillermo P.','Ricardo F.','Daniel G.','Chofer Ext.'], usrD:[100,51,22,22,59],
+         zon:[715,61,0], tend:[13,22,52,48,0,0,59,51,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  sep: { total:'1.520 L', regs:32, mir:'750 L', rin:'3.800 L', ben:'180 L', pMir:75, pRin:76, pBen:90,
+         veh:['MF 15','MF 21','MF 12','Landini 18','Camioneta BB'], vehD:[320,280,240,190,150],
+         usr:['Marcos V.','Daniel G.','Ricardo F.','Guillermo P.','Nelson S.'], usrD:[410,320,290,250,180],
+         zon:[980,540,0], tend:[50,60,40,55,70,35,80,50,60,55,70,40,55,50,65,55,45,70,35,55,50,65,45,60,75,40,55,65,45,55] },
+  ago: { total:'1.840 L', regs:38, mir:'680 L', rin:'3.200 L', ben:'150 L', pMir:68, pRin:64, pBen:75,
+         veh:['MF 15','MF 21','MF 12','Landini','Camioneta BB'], vehD:[420,350,310,270,190],
+         usr:['Marcos V.','Ricardo F.','Daniel G.','Guillermo P.','Raul B.'], usrD:[520,380,340,290,210],
+         zon:[1100,740,0], tend:[60,80,55,70,90,45,110,60,80,70,95,50,75,60,85,70,55,90,40,75,60,80,50,70,90,45,60,80,55,70] }
+};
+
+function updateDash(m) {
+  var d = dash[m] || dash.oct;
+  document.getElementById('mTotal').textContent = d.total;
+  document.getElementById('mRegs').textContent = d.regs;
+  document.getElementById('mMirador').textContent = d.mir;
+  document.getElementById('mRinconada').textContent = d.rin;
+  document.getElementById('mBencina').textContent = d.ben;
+
+  setTank('pbMirador','pctMirador','ltsMirador', d.pMir, d.mir, '#1D9E75', 'alertMir', 20);
+  setTank('pbRinconada','pctRinconada','ltsRinconada', d.pRin, d.rin, '#1D9E75', 'alertRin', 20);
+  setTank('pbBencina','pctBencina','ltsBencina', d.pBen, d.ben, '#C4681A', 'alertBen', 40);
+
+  if (charts.veh) { charts.veh.data.labels = d.veh; charts.veh.data.datasets[0].data = d.vehD; charts.veh.update(); }
+  if (charts.usr) { charts.usr.data.labels = d.usr; charts.usr.data.datasets[0].data = d.usrD; charts.usr.update(); }
+  if (charts.zon) { charts.zon.data.datasets[0].data = d.zon; charts.zon.update(); }
+  if (charts.tend) { charts.tend.data.datasets[0].data = d.tend; charts.tend.update(); }
+}
+
+function setTank(pbId, pctId, ltsId, pct, lts, color, alertId, minPct) {
+  var umbral = minPct !== undefined ? minPct : 20;
+  var bar = document.getElementById(pbId);
+  bar.style.width = pct + '%';
+  bar.style.background = pct <= umbral ? '#D85A30' : color;
+  document.getElementById(pctId).textContent = pct + '%';
+  document.getElementById(ltsId).textContent = lts;
+  document.getElementById(alertId).style.display = pct <= umbral ? '' : 'none';
+}
+
+function initCharts() {
+  if (charts.veh) return;
+  var d = dash.oct;
+  var hbar = { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+    plugins:{ legend:{display:false} },
+    scales:{ x:{ grid:{color:'rgba(128,128,128,0.1)'}, ticks:{color:'#888',font:{size:11}} },
+             y:{ grid:{display:false}, ticks:{color:'#555',font:{size:12}} } } };
+
+  charts.veh = new Chart(document.getElementById('chartVeh'), {
+    type:'bar', data:{ labels: d.veh,
+    datasets:[{data: d.vehD, backgroundColor:'#5DCAA5',borderRadius:4}] },
+    options: JSON.parse(JSON.stringify(hbar)) });
+
+  charts.usr = new Chart(document.getElementById('chartUsr'), {
+    type:'bar', data:{ labels: d.usr,
+    datasets:[{data: d.usrD, backgroundColor:'#378ADD',borderRadius:4}] },
+    options: JSON.parse(JSON.stringify(hbar)) });
+
+  charts.zon = new Chart(document.getElementById('chartZon'), {
+    type:'bar', data:{ labels:['Mirador','Rinconada','Bencina'],
+    datasets:[{data: d.zon, backgroundColor:['#1D9E75','#5DCAA5','#C4681A'],borderRadius:6}] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ grid:{color:'rgba(128,128,128,0.1)'}, ticks:{color:'#888'} },
+               y:{ grid:{display:false}, ticks:{color:'#555',font:{size:13}} } } } });
+
+  var dias = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30];
+  charts.tend = new Chart(document.getElementById('chartTend'), {
+    type:'line',
+    data:{ labels:dias, datasets:[{
+      data: d.tend,
+      borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.08)',
+      pointRadius:2, borderWidth:2, fill:true, tension:0.3 }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ grid:{display:false}, ticks:{color:'#888',font:{size:10},maxTicksLimit:10} },
+               y:{ grid:{color:'rgba(128,128,128,0.1)'}, ticks:{color:'#888',font:{size:11}} } } } });
+}
+</script>
+</body>
+</html>
