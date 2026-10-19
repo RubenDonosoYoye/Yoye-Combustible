@@ -193,14 +193,15 @@
 </div>
 
 <script>
-var API    = 'https://sheetdb.io/api/v1/f8bs0mhvp5sai';
+var API    = 'https://script.google.com/macros/s/AKfycbz1nGwDBr4rAvVw53NzD7qovDF9h_cOQtjlk3dnOX6ysbNWecZwQftvcjBdpxDU6BOWGA/exec';
 var CAP    = { Mirador: 1000, Rinconada: 5000, Bencina: 200 };
 var ALERT  = { Mirador: 20, Rinconada: 20, Bencina: 40 };
 var charts = {};
 var allData = [];
 var saldos = { Mirador: 0, Rinconada: 0, Bencina: 0 };
 
-function fmtL(n) { return Number(n).toLocaleString('es-CL'); }
+function parseLts(v) { if (v === null || v === undefined || v === '') return 0; var s = String(v).trim().replace(',', '.'); var n = parseFloat(s); return isNaN(n) ? 0 : n; }
+function fmtL(n) { return parseLts(n).toLocaleString('es-CL'); }
 function tankColor(p, alertPct) { var a = alertPct || 20; return p > (a * 2) ? '#1D9E75' : p > a ? '#EF9F27' : '#D85A30'; }
 function benColor(p) { return p > 80 ? '#C4681A' : p > 40 ? '#E5893A' : '#D85A30'; }
 
@@ -209,18 +210,18 @@ async function cargarDatos() {
   try {
     var r = await fetch(API + '?sheet=Consumos');
     var d = await r.json();
-    allData = Array.isArray(d) ? d.filter(function(x){ return x.Fecha && x.Litros && Number(x.Litros) > 0; }) : [];
+    allData = Array.isArray(d) ? d.filter(function(x){ return x.Fecha && parseLts(x.Litros) > 0; }) : [];
 
     try {
       var rc = await fetch(API + '?sheet=Compras');
       var dc = await rc.json();
       if (Array.isArray(dc) && dc.length > 0) {
         var compMir = dc.filter(function(x){ return x.Campo === 'Mirador'; })
-                        .reduce(function(s,x){ return s + Number(x.Litros||0); }, 0);
+                        .reduce(function(s,x){ return s + parseLts(x.Litros); }, 0);
         var compRin = dc.filter(function(x){ return x.Campo === 'Rinconada'; })
-                        .reduce(function(s,x){ return s + Number(x.Litros||0); }, 0);
+                        .reduce(function(s,x){ return s + parseLts(x.Litros); }, 0);
         var compBen = dc.filter(function(x){ return x.Campo === 'Bencina'; })
-                        .reduce(function(s,x){ return s + Number(x.Litros||0); }, 0);
+                        .reduce(function(s,x){ return s + parseLts(x.Litros); }, 0);
         saldos.Mirador   = compMir;
         saldos.Rinconada = compRin;
         saldos.Bencina   = compBen;
@@ -243,16 +244,24 @@ async function cargarDatos() {
   document.getElementById('loadingBanner').style.display = 'none';
 }
 
+function parseFecha(f) {
+  // Acepta DD/MM/YYYY o DD-MM-YYYY
+  if (!f) return null;
+  var parts = String(f).split(/[\/\-]/);
+  if (parts.length === 3) return { d: parts[0], m: parts[1], y: parts[2] };
+  return null;
+}
+
 function poblarMeses() {
   var meses = {};
   allData.forEach(function(r) {
     if (r.Fecha) {
-      var parts = r.Fecha.split('/');
-      if (parts.length === 3) {
-        var key = parts[2] + '-' + parts[1].padStart(2,'0');
+      var p = parseFecha(r.Fecha);
+      if (p) {
+        var key = p.y + '-' + p.m.padStart(2,'0');
         var _meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-        var _mIdx = parseInt(parts[1], 10) - 1;
-        var label = _meses[_mIdx] + ' ' + parts[2];
+        var _mIdx = parseInt(p.m, 10) - 1;
+        var label = _meses[_mIdx] + ' ' + p.y;
         meses[key] = label;
       }
     }
@@ -271,24 +280,24 @@ function filtrarMes() {
   var filtrado = mes
     ? allData.filter(function(r) {
         if (!r.Fecha) return false;
-        var p = r.Fecha.split('/');
-        return p.length === 3 && (p[2] + '-' + p[1].padStart(2,'0')) === mes;
+        var p = parseFecha(r.Fecha);
+        return p && (p.y + '-' + p.m.padStart(2,'0')) === mes;
       })
     : allData;
   renderDash(filtrado);
 }
 
 function renderDash(data) {
-  var total = data.reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+  var total = data.reduce(function(s,r){ return s + parseLts(r.Litros); }, 0);
   document.getElementById('mTotal').textContent = fmtL(total) + ' L';
   document.getElementById('mRegs').textContent  = data.length;
 
   var consMir = data.filter(function(r){ return r.Campo === 'Mirador'; })
-                    .reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+                    .reduce(function(s,r){ return s + parseLts(r.Litros); }, 0);
   var consRin = data.filter(function(r){ return r.Campo === 'Rinconada'; })
-                    .reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+                    .reduce(function(s,r){ return s + parseLts(r.Litros); }, 0);
   var consBen = data.filter(function(r){ return r.Campo === 'Bencina'; })
-                    .reduce(function(s,r){ return s + Number(r.Litros||0); }, 0);
+                    .reduce(function(s,r){ return s + parseLts(r.Litros); }, 0);
 
   var stockMir = Math.max(0, saldos.Mirador - consMir);
   var stockRin = Math.max(0, saldos.Rinconada - consRin);
@@ -331,15 +340,22 @@ function renderDash(data) {
   } else { ab.style.display = 'none'; }
 
   var vehMap = {};
-  data.forEach(function(r) { if(r.Vehiculo) vehMap[r.Vehiculo] = (vehMap[r.Vehiculo]||0) + Number(r.Litros||0); });
+  data.forEach(function(r) { if(r.Vehiculo) vehMap[r.Vehiculo] = (vehMap[r.Vehiculo]||0) + parseLts(r.Litros); });
   var vehSort = Object.entries(vehMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
 
   var usrMap = {};
-  data.forEach(function(r) { if(r.Chofer) usrMap[r.Chofer] = (usrMap[r.Chofer]||0) + Number(r.Litros||0); });
+  data.forEach(function(r) { if(r.Chofer) usrMap[r.Chofer] = (usrMap[r.Chofer]||0) + parseLts(r.Litros); });
   var usrSort = Object.entries(usrMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
 
   var diaMap = {};
-  data.forEach(function(r) { if(r.Fecha) diaMap[r.Fecha] = (diaMap[r.Fecha]||0) + Number(r.Litros||0); });
+  data.forEach(function(r) {
+    if(r.Fecha) {
+      // Normalizar fecha a DD/MM/YYYY para agrupar correctamente
+      var p = parseFecha(r.Fecha);
+      var fkey = p ? (p.d.padStart(2,'0') + '/' + p.m.padStart(2,'0') + '/' + p.y) : r.Fecha;
+      diaMap[fkey] = (diaMap[fkey]||0) + parseLts(r.Litros);
+    }
+  });
   var diasSort = Object.keys(diaMap).sort();
 
   renderCharts(vehSort, usrSort, [consMir, consRin, consBen], diasSort, diaMap);
