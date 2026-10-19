@@ -536,13 +536,24 @@ function selectZonaCompra(zona, btn) {
   btn.classList.add('selected');
 }
 
+function gasUrl(params) {
+  var url = SHEETDB_URL + '?';
+  var parts = [];
+  for (var k in params) {
+    if (params.hasOwnProperty(k)) {
+      parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+    }
+  }
+  return url + parts.join('&');
+}
+
 function testConexion() {
   var el = document.getElementById('diagResult');
   el.style.display = 'block';
   el.style.color = '#444';
   el.textContent = 'Probando conexión…';
   var t0 = Date.now();
-  fetch(SHEETDB_URL + '?sheet=Consumos&limit=1', { method: 'GET', mode: 'cors' })
+  fetch(SHEETDB_URL + '?sheet=Consumos', { method: 'GET', mode: 'cors' })
   .then(function(r){
     var ms = Date.now() - t0;
     el.style.color = r.ok ? '#0a6e40' : '#c0392b';
@@ -550,8 +561,11 @@ function testConexion() {
     var now = new Date();
     var dd = String(now.getDate()).padStart(2,'0');
     var mm = String(now.getMonth()+1).padStart(2,'0');
-    var payload = { data: [{ Fecha: dd+'/'+mm+'/'+now.getFullYear(), Hora: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'), Campo: 'TEST-DIAG', Vehiculo: navigator.userAgent.substring(0,40), Chofer: 'DIAG', Litros: 0.1 }]};
-    return fetch(SHEETDB_URL + '?sheet=Consumos', { method: 'POST', mode: 'cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    var url = gasUrl({ action:'write', sheet:'Consumos',
+      Fecha: dd+'/'+mm+'/'+now.getFullYear(),
+      Hora: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
+      Campo: 'TEST-DIAG', Vehiculo: 'DIAG', Chofer: 'DIAG', Litros: '0.1' });
+    return fetch(url, { method: 'GET', mode: 'cors' });
   })
   .then(function(r2){
     return r2.text().then(function(txt){ return {ok: r2.ok, status: r2.status, txt: txt}; });
@@ -613,25 +627,17 @@ function registrarConsumo() {
   var fecha = dd + '/' + mm + '/' + yyyy;
   var hora  = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-  var payload = { data: [{
-    Fecha: fecha,
-    Hora: hora,
-    Campo: zonaConsumo,
-    Vehiculo: v,
-    Chofer: u,
-    Litros: l
-  }]};
-
   var btn = document.querySelector('.btn-register');
   btn.disabled = true;
   btn.textContent = 'Guardando…';
 
-  fetch(SHEETDB_URL + '?sheet=Consumos', {
-    method: 'POST',
-    mode: 'cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
+  var url = gasUrl({
+    action: 'write', sheet: 'Consumos',
+    Fecha: fecha, Hora: hora,
+    Campo: zonaConsumo, Vehiculo: v, Chofer: u, Litros: String(l)
+  });
+
+  fetch(url, { method: 'GET', mode: 'cors' })
   .then(function(r){
     if (!r.ok) {
       return r.text().then(function(txt){
@@ -640,7 +646,8 @@ function registrarConsumo() {
     }
     return r.json();
   })
-  .then(function(){
+  .then(function(res){
+    if (res && res.ok === false) throw new Error(res.error || 'Error desconocido');
     document.getElementById('successTitle').textContent = '¡Registrado!';
     document.getElementById('successLine1').textContent = zonaConsumo + '  ·  ' + v;
     document.getElementById('successLine2').textContent = u + '  ·  ' + l + ' litros  ·  ' + e;
@@ -671,22 +678,14 @@ function registrarCompra() {
   var hora  = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   var total = p ? l * p : 0;
 
-  var payload = { data: [{
-    Fecha: fecha,
-    Hora: hora,
-    Campo: zonaCompra,
-    Proveedor: prov,
-    Litros: l,
-    PrecioLitro: p || '',
-    Total: total || ''
-  }]};
+  var urlC = gasUrl({
+    action: 'write', sheet: 'Compras',
+    Fecha: fecha, Hora: hora,
+    Campo: zonaCompra, Proveedor: prov,
+    Litros: String(l), PrecioLitro: String(p || ''), Total: String(total || '')
+  });
 
-  fetch(SHEETDB_URL + '?sheet=Compras', {
-    method: 'POST',
-    mode: 'cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
+  fetch(urlC, { method: 'GET', mode: 'cors' })
   .then(function(r){
     if (!r.ok) {
       return r.text().then(function(txt){
@@ -695,7 +694,8 @@ function registrarCompra() {
     }
     return r.json();
   })
-  .then(function(){
+  .then(function(res){
+    if (res && res.ok === false) throw new Error(res.error || 'Error desconocido');
     document.getElementById('successTitle').textContent = '¡Compra registrada!';
     document.getElementById('successLine1').textContent = 'Estanque ' + zonaCompra + '  ·  ' + prov + '  ·  +' + l + ' L';
     document.getElementById('successLine2').textContent = total ? 'Total: $' + parseInt(total).toLocaleString('es-CL') : '';
